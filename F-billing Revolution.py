@@ -2,10 +2,14 @@ from cgitb import text
 
 
 from itertools import count
+from msilib.schema import CheckBox
 from pydoc import describe
+import string
 from tkinter import *
 from tkinter import messagebox
 from tkinter import ttk
+from xmlrpc.client import boolean
+
 from PIL import ImageTk, Image, ImageFile
 import pandas as pd
 from tkinter.messagebox import showinfo
@@ -22,8 +26,12 @@ import mysql.connector
 import io
 from openpyxl.workbook import Workbook
 from openpyxl import load_workbook
-from models import *
 import shutil
+
+fbilldb = mysql.connector.connect(
+    host="localhost", user="root", password="", database="fbillingsintgrtd", port="3306"
+)
+fbcursor = fbilldb.cursor()
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -122,7 +130,7 @@ photo9 = PhotoImage(file = "images/sum.png")
 photo10 = PhotoImage(file = "images/text-message.png")
 
 
-####### TAB 6Expense Module-###################################################
+####### TAB 5  Expense Module-############## ASHIQUE #####################################
 mainFrame=Frame(relief=GROOVE, bg="#f8f8f2")
 mainFrame.pack(side="top", fill=BOTH)
 
@@ -130,7 +138,7 @@ midFrame=Frame(mainFrame, bg="#f5f3f2", height=60)
 midFrame.pack(side="top", fill=X)
 
 def add_expense():
-    global expamountval,expdate,vn,cn,expdescriptionentry,expstaffentry,checkvarStatus4,cus,rebi,id_sku1,rebill_amoun,exptxt,expenselabelframe
+    global expamountval,expdate,vn,cn,expdescriptionentry,expstaffentry,checkvarStatus4,cus,rebi,id_sku1,rebill_amoun,exptxt,expenselabelframe,rebill,imge,other
     window = Toplevel()  
     
     window.title("Add new Expense")
@@ -172,7 +180,7 @@ def add_expense():
     vendor['values'] = pdata
       
     vendor.place(x=130,y=45) 
-    vendor.current(0)
+    # vendor.current(0)
 
     categoryexp1=Label(expenselabelframe,text="Category:",pady=5,padx=10)
     categoryexp1.place(x=330,y=40)
@@ -198,14 +206,15 @@ def add_expense():
     expstaffentry = Entry(expenselabelframe,width=30,textvariable=expstafftval)
     expstaffentry.place(x=130,y=118)
 
-    checkvarStatus4=IntVar()
+    checkvarStatus4=BooleanVar()
    
     Button4 = Checkbutton(expenselabelframe,variable = checkvarStatus4, 
                       text="Taxable Tax1 rate", 
-                      onvalue =0 ,
-                      offvalue = 1,
+                      onvalue ='Yes' ,
+                      offvalue = 'No',
                       height=3,
                       width = 15)
+
 
     Button4.place(x=400,y=120)
 
@@ -241,16 +250,16 @@ def add_expense():
         rebill_label.place_forget()
         rebill_entry.place_forget()
     rebill = BooleanVar()
-    rebi = IntVar
-    button51 = Checkbutton(expenselabelframe, text="Rebillable" ,variable=rebill, command=toggle,textvariable=rebi)
+    rebi = StringVar()
+    button51 = Checkbutton(expenselabelframe, text="Rebillable" ,variable=rebill, command=toggle,onvalue ='Yes' ,offvalue = 'NO')
     
     
-    id_sku1 = IntVar(expenselabelframe,)
+    id_sku1 = IntVar()
     id_skulabel=Label(expenselabelframe,text="id_sku:")
     id_skuentry = Entry(expenselabelframe,width=15,textvariable=id_sku1)
    
 
-    rebill_amoun = IntVar(expenselabelframe, value='00')
+    rebill_amoun = IntVar()
     rebill_label=Label(expenselabelframe,text="Rebill amount:")
     rebill_entry = Entry(expenselabelframe,width=15,textvariable=rebill_amoun)
     
@@ -279,7 +288,7 @@ def add_expense():
     exptxt = scrolledtext.ScrolledText(expenselabelframe, undo=True,width=50,height=5)
     exptxt.place(x=22,y=280)
 
-    expokButton = Button(window, text ="Ok",image=tick,width=70,compound = LEFT,command=reg_1)
+    expokButton = Button(window, text ="Ok",image=tick,width=70,compound = LEFT,command=insert_expenses)
     expokButton.place(x=280,y=415)
 
     window.mainloop()
@@ -303,7 +312,7 @@ def upload_file():
 
 
 
-def reg_1():# Storing values into db (user)
+def insert_expenses():# Storing values into db (user)
   global img , filename 
   expense_amount = expamountval.get()
   date = expdate.get_date()
@@ -316,33 +325,46 @@ def reg_1():# Storing values into db (user)
   id_sku = id_sku1.get()
   notes = exptxt.get('1.0', 'end-1c')
   rebill_amount = rebill_amoun.get()
-  rebillab = checkvarStatus4.get()
+  rebillab = rebill.get()
+  recipt = imge.get()
+  assign_cus = other.get()
 
-  shutil.copyfile(filename, os.getcwd()+'/images/'+filename.split('/')[-1])
+  
   
 
   # file=open(filename,'rb').read() # filename from upload_file()
   # file = base64.b64encode(file)
 
-  sql='INSERT INTO Expenses (expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,rebill_amount,image) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)' #adding values into db
-  val=(expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,rebill_amount,filename.split('/')[-1])
+  # sql='INSERT INTO Expenses (expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,rebill_amount,rebillable) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)' #adding values into db
+  # val=(expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,rebill_amount,rebillab)
+  # fbcursor.execute(sql,val)
+  # fbilldb.commit()
+
+
+  shutil.copyfile(filename, os.getcwd()+'/images/'+filename.split('/')[-1])
+  sql='INSERT INTO Expenses (expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,rebill_amount,image,rebillable,receipt,assign_customer) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)' #adding values into db
+  val=(expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,  rebill_amount,filename.split('/')[-1],rebillab,recipt,assign_cus)
   fbcursor.execute(sql,val)
   fbilldb.commit()
 
-  for record in tree.get_children():
-    tree.delete(record)
+
+  for record in exp_tree.get_children():
+    exp_tree.delete(record)
   count=0
   fbcursor.execute('SELECT * FROM Expenses;')
   for i in fbcursor:
     if True:
-      tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5],     [8]  ,i[7], i[13], i[14], i[11],i[16],i[3]))
-    else:
+      if i[13] == '1':
+        e = 'Yes'
+      else:
+        e = 'No'
+      exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i[7], e , i[14], i[11],i[16],i[3]))
       pass
   count += 1
 #     fbcursor.execute('SELECT * FROM Expenses;')
 #   j = 0
 #   for i in fbcursor:
-#     tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i  [7], i[13], i[14], i[11],i[16],i[3]))
+#     exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i  [7], i[13], i[14], i[11],i[16],i[3]))
 #   j += 1
   messagebox.showinfo('Registration successfull','Registration successfull')
 
@@ -353,9 +375,9 @@ def reg_1():# Storing values into db (user)
 
 
 def edit_expense():
-    global expamountval,expdate,vn,cn,expdescriptionentry,expstafftval,checkvarStatus4,cus,rebi,id_sku1,rebill_amoun,exptxt,expenselabelframe
+    global expamountval,expdate,vn,cn,expdescriptionentry,expstafftval,checkvarStatus4,cus,rebi,id_sku1,rebill_amoun,exptxt,expenselabelframe,recimage
     try:
-      itemid = tree.item(tree.focus())["values"][0]
+      itemid = exp_tree.item(exp_tree.focus())["values"][0]
       sql = "select * from Expenses where expensesid = %s"
       val = (itemid, )
 
@@ -364,7 +386,7 @@ def edit_expense():
 
       def update_expenses():# Storing values into db (user)
         global img , filename 
-        itemid = tree.item(tree.focus())["values"][0]
+        itemid = exp_tree.item(exp_tree.focus())["values"][0]
         expense_amount = expamountval.get()
         date = expdate.get_date()
         vendor = vn.get()
@@ -376,20 +398,47 @@ def edit_expense():
         id_sku = id_sku1.get()
         notes = exptxt.get('1.0', 'end-1c')
         rebill_amount = rebill_amoun.get()
-        shutil.copyfile(filename, os.getcwd()+'/images/'+filename.split('/')[-1])
+        rebillabe = rebill.get()
+        assign_cus = other.get()
+        recepit = imge.get()
+
+
         
-        sql='UPDATE Expenses set expense_amount=%s,date=%s,vendor=%s,catagory=%s,description=%s,  staff_members=%s,taxable=%s,customer=%s,id_sku=%s,notes=%s,rebill_amount=%s,image=%s where expensesid=%s'
-        val=(expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,
-        rebill_amount,filename.split('/')[-1],itemid)
-        fbcursor.execute(sql,val)
+        itemid1 = exp_tree.item(exp_tree.focus())["values"][0]
+        sq = 'select image from Expenses where expensesid = %s'
+        va =(itemid1,)
+        fbcursor.execute(sq,va)
+        up = fbcursor.fetchone()
+        print(up,recimage)
+        # file = shutil.copyfile(filename, os.getcwd()+'/images/'+filename.split('/')[-1])
+        if up:
+          sql='UPDATE Expenses set expense_amount=%s,date=%s,vendor=%s,catagory=%s,description=%s,    staff_members=%s,taxable=%s,customer=%s,id_sku=%s,notes=%s,rebill_amount=%s,rebillable=%s,assign_customer=%s,receipt=%s where expensesid=%s'
+          val=(expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,
+          rebill_amount,rebillabe,assign_cus,recepit,itemid)
+          fbcursor.execute(sql,val)
+        else:
+          pass
+        try:
+          file = shutil.copyfile(filename, os.getcwd()+'/images/'+filename.split('/')[-1])
+          sql='UPDATE Expenses set expense_amount=%s,date=%s,vendor=%s,catagory=%s,description=%s,    staff_members=%s,taxable=%s,customer=%s,id_sku=%s,notes=%s,rebill_amount=%s,image=%s,rebillable=%s,assign_customer=%s,receipt=%s where expensesid=%s'
+          val=(expense_amount,date,vendor,catagory,description,staff_members,taxable,customer,id_sku,notes,
+          rebill_amount,filename.split('/')[-1],rebillabe,assign_cus,recepit,itemid)
+          fbcursor.execute(sql,val)
+        except:
+          pass
+
         fbilldb.commit()
-        for record in tree.get_children():
-            tree.delete(record)
+        for record in exp_tree.get_children():
+            exp_tree.delete(record)
         count=0
         fbcursor.execute('SELECT * FROM Expenses;')
         for i in fbcursor:
             if True:
-                tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5],     [8]  ,i[7], i[13], i[14], i[11],i[16],i[3]))
+              if i[13] == '1':
+                e = 'Yes'
+              else:
+                e = 'No'
+              exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i[7], e , i[14], i[11],i[16],i[3]))
             else:
                 pass
         count += 1
@@ -400,7 +449,11 @@ def edit_expense():
       
       window1.title("Edit Expense")
       p2 = PhotoImage(file = 'images/fbicon.png')
-      recimage= PhotoImage(file= 'images/'+psdata[11])
+      # recimage= PhotoImage(file= 'images/'+psdata[11])
+     
+      # image = Image.open(recimage)
+      # resize_image = image.resize((120, 120))
+      # imga = ImageTk.PhotoImage(resize_image)
       window1.iconphoto(False, p1)
    
       window1.geometry("618x449+380+167")
@@ -458,7 +511,7 @@ def edit_expense():
       categorydrop['values'] = ('Default') 
         
       categorydrop.place(x=400,y=45)
-      categorydrop.current(0)
+    
   
       
   
@@ -476,17 +529,33 @@ def edit_expense():
       expstaffentry.place(x=130,y=118)
       expstaffentry.delete(0,'end')
       expstaffentry.insert(0, psdata[8])
+
+
+      
+      
+
   
-      checkvarStatus4=IntVar()
+      checkvarStatus4=BooleanVar()
      
       Button4 = Checkbutton(expenselabelframe,variable = checkvarStatus4, 
                         text="Taxable Tax1 rate", 
-                        onvalue =0 ,
-                        offvalue = 1,
+                        onvalue ='1',
+                        offvalue = '0',
                         height=3,
                         width = 15)
   
       Button4.place(x=400,y=120)
+      # Button4.bind("<Button-1>", getBool)
+      
+      ps = psdata[9]
+      print(ps)
+      if ps == '1':
+       Button4.select()
+      else:
+        Button4.deselect()
+          
+      
+ 
   
       sql = "select businessname from Customer"
       fbcursor.execute(sql,)
@@ -509,8 +578,19 @@ def edit_expense():
       ent['values'] = cusdta
       ent.delete(0,'end')
       ent.insert(0, psdata[10])
-  
+
       
+
+
+
+
+  
+      # def va():
+      #   id_skulabel.place(x=375,y=160)
+      #   id_skuentry.place(x=420,y=160)
+      #   rebill_label.place(x=335,y=180)
+      #   rebill_entry.place(x=420, y=180)
+
       def toggle():
         if rebill.get():
           id_skulabel.place(x=375,y=160)
@@ -524,8 +604,16 @@ def edit_expense():
           rebill_entry.place_forget()
       rebill = BooleanVar()
       rebi = IntVar
-      button51 = Checkbutton(expenselabelframe, text="Rebillable" ,variable=rebill, command=toggle,  textvariable=rebi)
-     
+      button51 = Checkbutton(expenselabelframe, text="Rebillable" ,variable=rebill, command=toggle)
+      
+      cns = psdata[17]
+      if cns == '1':
+        button5.select()
+        ent.place(x=45,y=180)
+        button51.place(x=250, y=160)
+      else:
+        button5.deselect()
+        
       
       
       id_sku1 = IntVar(expenselabelframe, value='-Expense-')
@@ -540,6 +628,17 @@ def edit_expense():
       rebill_entry.delete(0,'end')
       rebill_entry.delete(0,'end')
       rebill_entry.insert(0, psdata[16])
+
+      reb = psdata[13]
+      print(ps)
+      if reb == '1':
+        button51.select()
+        id_skulabel.place(x=375,y=160)
+        id_skuentry.place(x=420,y=160)
+        rebill_label.place(x=335,y=180)
+        rebill_entry.place(x=420, y=180)
+      else:
+        button51.deselect()
   
   
       
@@ -556,12 +655,32 @@ def edit_expense():
           b2.place_forget()
         
       imge = BooleanVar()
-      Button6 = Checkbutton(expenselabelframe, text = "Attach receipt image(optional,image will be stored   to the database)",command=toggle,variable=imge,)
+      Button6 = Checkbutton(expenselabelframe, text = "Attach receipt image(optional,image will be stored   to the database)",command=toggle,variable=imge)
       Button6.place(x=40, y=200)
       browseimg=Label(expenselabelframe,text="(recommended image type:JPG,size 480x320 pixels) ",  bg='#f5f3f2')
       browsebutton=Button(expenselabelframe,text = 'Browse', command=upload_file1)
-      b2 = Label(expenselabelframe,image=recimage, height=120, width=120,)
-  
+     
+      try:
+        image = Image.open("images/"+psdata[11])
+        resize_image = image.resize((120, 120))
+        recimage = ImageTk.PhotoImage(resize_image)
+        b2 = Button(expenselabelframe,image=recimage, height=120, width=120,)
+        b2.photo = recimage
+        print(image)
+      except:
+        pass
+      
+      
+      rec = psdata[18]
+      print(rec)
+      if rec == '1':
+        Button6.select()
+        browseimg.place(x=40,y=220)
+        browsebutton.place(x=350,y=220,height=30,width=50)
+        b2.place(x=450, y=240)
+      else:
+        Button6.deselect()
+
   
       exptext1=Label(expenselabelframe,text="Notes",pady=5,padx=10)
       exptext1.place(x=12,y=246)
@@ -581,7 +700,7 @@ def edit_expense():
     window1.mainloop()
 
 def upload_file1():
-   global filename,img, b2
+   global filename,img, b1
    f_types =[('Png files','*.png'),('Jpg Files', '*.jpg')]
    filename = filedialog.askopenfilename(filetypes=f_types)
    print(filename, 'name')
@@ -593,6 +712,25 @@ def upload_file1():
    b1 = Label(expenselabelframe,image=img, height=120, width=120)
    b1.place(x=450, y=240)
       
+def file_image(event):
+      edit_window = Toplevel()
+      edit_window.title("Edit the value or cancel")
+      edit_window.geometry("700x500")
+      
+      
+      itemid = exp_tree.item(exp_tree.focus())["values"][0]
+      sql = "select * from Expenses where expensesid = %s"
+      val = (itemid, )
+
+      fbcursor.execute(sql, val)
+      psda = fbcursor.fetchone() 
+      image = Image.open("images/"+psda[11])
+      resize_image = image.resize((700, 500))
+      eximage = ImageTk.PhotoImage(resize_image)
+      b2 = Button(edit_window,image=eximage)
+      b2.photo = eximage
+      b2.pack()
+  
 
 ######################## DELETE EXPENSE #######################################################################
 
@@ -601,40 +739,33 @@ def delete_expense():
     
     delmess = messagebox.askyesno("Delete Expense", "Are you sure to delete this Expense?")
     if delmess == True:
-      itemid = tree.item(tree.focus())["values"][0]
+      itemid = exp_tree.item(exp_tree.focus())["values"][0]
       print(itemid)
       sql = 'DELETE FROM Expenses WHERE expensesid=%s'
       val = (itemid,)
       fbcursor.execute(sql, val)
       fbilldb.commit()
-      #selrow = tree.selection()[0]
-      tree.delete(tree.selection()[0])
+      #selrow = exp_tree.selection()[0]
+      exp_tree.delete(exp_tree.selection()[0])
     else:
       pass
   
 
 ######################## SEARCH EXPENSE ######################################################################
-def search_records():
-  sear = searchvar.get()
-  for record in tree.get_children():
-    tree.delete(record)
+def close_expenses():
   top.destroy()
+
+def search_exp():
+  query = searchvar.get()
+  selections = []
+  for child in exp_tree.get_children():
+      if query in exp_tree.item(child)['values']:
+          print(exp_tree.item(child)['values'])
+          selections.append(child)
+  exp_tree.selection_set(selections)
   
-  sql = "select * from Expenses where customer = %s"
-  val = (sear,)
-  fbcursor.execute(sql, val)
-  records = fbcursor.fetchall()
   
   
-  count=0
-  for i in records:
-    if True:
-      tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8],i[7], i[13], i[14], i[11],i[16],i[3]))
-    else:
-      pass
-  count += 1
-  
-  fbilldb.commit()
 
 def search_expense():
     global top,searchvar
@@ -654,7 +785,7 @@ def search_expense():
     findwhat.place(x=80,y=25) 
     
 
-    findButton = Button(top, text ="Find next",width=10, command=search_records)
+    findButton = Button(top, text ="Find next",width=10, command=search_exp)
     findButton.place(x=420,y=20)
 
     findin1=Label(top,text="Find in:",pady=5,padx=10)
@@ -680,7 +811,7 @@ def search_expense():
     findIN.place(x=80,y=54) 
     findIN.current(0)
 
-    closeButton = Button(top, text ="Close",width=10)
+    closeButton = Button(top, text ="Close",width=10,command=close_expenses)
     closeButton.place(x=420,y=50)
 
     match1=Label(top,text="Match:",pady=5,padx=10)
@@ -712,8 +843,8 @@ def search_expense():
    
     Button4 = Checkbutton(top,variable = checkvarStatus4, 
                       text="Match Case", 
-                      onvalue =0 ,
-                      offvalue = 1,
+                      onvalue =1,
+                      offvalue = 0,
                       height=3,
                       width = 15)
 
@@ -729,6 +860,8 @@ def search_expense():
                       width = 15)
 
     Button5.place(x=270,y=141)
+
+
 
 
 
@@ -779,33 +912,122 @@ lbl_expdt.grid(row=0, column=0, pady=5, padx=(5, 0))
 lbl_expdtt=Label(lbframe,text="Expense date to:" , fg='black')
 lbl_expdtt.grid(row=1, column=0, pady=5, padx=(5, 0))
 
+def daterange_expenses(): # Start and stop dates for range
+  var1=expdt1.get_date()
+  var2=expdtt2.get_date()
+  print(var1,var2)
+  for record in exp_tree.get_children():
+    exp_tree.delete(record)
+  
+  sqldate='SELECT * FROM Expenses WHERE date BETWEEN %s AND %s'
+  valuz=(var1,var2,)
+  fbcursor.execute(sqldate,valuz)
+  filterdate=fbcursor.fetchall()
+  print(filterdate)
+  count=0
+  for i in filterdate:
+    if True:
+      if i[13] == '1':
+        e = 'Yes'
+      else:
+        e = 'No'
+      exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i [8], i[7], e , i[14], i[11],i[16],i[3]))
+    else:
+        pass
+  count += 1
+
+  
+expdt1=DateEntry(lbframe)
+expdt1.grid(row=0, column=1)
    
-expdt=DateEntry(lbframe)
-expdt.grid(row=0, column=1)
-   
-expdtt=DateEntry(lbframe)
-expdtt.grid(row=1, column=1)
+expdtt2=DateEntry(lbframe)
+expdtt2.grid(row=1, column=1)
    
 checkvar1 = IntVar()
-chkbtn1 = Checkbutton(lbframe, text = "Apply filter", variable = checkvar1, onvalue = 1, offvalue =0,   height = 2, width = 8)
+chkbtn1 = Checkbutton(lbframe, text = "Apply filter", variable = checkvar1, onvalue = 1, offvalue =0,   height = 2, width = 8,command=daterange_expenses)
 chkbtn1.grid(row=0, column=2, rowspan=2, padx=(5,5))
 
 
 e = Canvas(mainFrame, width=1, height=55, bg="#b3b3b3", bd=0)
 e.pack(side="left", padx=5)
 
+def refresh_expenses():
+  for record in exp_tree.get_children():
+    exp_tree.delete(record)
+  count=0
+  fbcursor.execute('SELECT * FROM Expenses;')
+  for i in fbcursor:
+    if True:
+      if i[13] == '1':
+        e = 'Yes'
+      else:
+        e = 'No'
+      exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i[7], e , i[14], i[11],i[16],i[3]))
+    else:
+        pass
+  count += 1
+  
+
 exprefreshIcon = ImageTk.PhotoImage(Image.open("images/refresh.png"))
-exprefreshLabel = Button(expmidFrame,compound="top", text="Refresh\nExpense List",relief=RAISED,  image=exprefreshIcon,bg="#f8f8f2", fg="black", height=55, bd=1, width=63)
+exprefreshLabel = Button(expmidFrame,compound="top", text="Refresh\nExpense List",relief=RAISED,  image=exprefreshIcon,bg="#f8f8f2", fg="black", height=55, bd=1, width=63,command=refresh_expenses)
 exprefreshLabel.pack(side="left")
 
 
 
 invoi1label = Label(expframe, text="Expenses (All)", font=("arial", 18), bg="#f8f8f2")
-invoi1label.pack(side="left", padx=(10,0))
-drop1 = ttk.Combobox(expframe, value="Hello")
-drop1.pack(side="right", padx=(0,10))
+invoi1label.pack(side="left", padx=(20,0))
+
+def fil(event):
+  filt = drop123.get()
+  for record in exp_tree.get_children():
+    exp_tree.delete(record)
+  
+  
+  
+  
+  sql = "select * from Expenses where catagory = %s"
+  val = (filt,)
+  fbcursor.execute(sql, val)
+  records = fbcursor.fetchall()
+  
+  
+  count=0
+  for i in records:
+      if True:
+        if i[13] == '1':
+           e = 'Yes'
+        else:
+          e = 'No'
+        exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i[7], e , i[14], i[11],i[16],i[3]))
+      else:
+        pass
+  count += 1
+
+sql = "SELECT DISTINCT catagory FROM Expenses"
+fbcursor.execute(sql,)
+rec = fbcursor.fetchall()
+drop123 = ttk.Combobox(expframe,)
+drop123['values'] = rec
+drop123.pack(side="right", padx=(0,10))
+drop123.bind("<<ComboboxSelected>>", fil)
+
+
+ 
 invoi1label = Label(expframe, text="Category filter", font=("arial", 15), bg="#f8f8f2")
 invoi1label.pack(side="right", padx=(0,10))
+
+# sql= 'SELECT rebillable FROM Expenses '
+# fbcursor.execute(sql,)
+# c = fbcursor.fetchall()
+# print (c[2])
+# print(c == 1)
+# for e in c:
+#   m = e == c
+#   m = ("Yes")
+#   e != c
+#   print("no")
+#   else:
+#     pass
 
 
 
@@ -814,42 +1036,53 @@ s = ttk.Style()
 s.configure('Treeview.Heading', background='white', State='DISABLE')
 
 
-tree=ttk.Treeview(tab6,selectmode='browse')
-tree.place(x=0,y=105,height=580)
+exp_tree=ttk.Treeview(tab6,selectmode='browse')
+exp_tree.place(x=0,y=105,height=580)
 
-expverticalbar=ttk.Scrollbar(tab6,orient="vertical",command=tree.yview,)
+expverticalbar=ttk.Scrollbar(tab6,orient="vertical",command=exp_tree.yview,)
 expverticalbar.place(x=1345,y=102,height=570,)
 expverticalbar.place(x=1345,y=102,height=570)
-tree["columns"]=("1","2","3","4","5","6","7","8","9","10","11","12")
-tree["show"]='headings'
-tree.column("1",width=5,anchor='c')
-tree.column("2",width=130,anchor='c')
-tree.column("3",width=110,anchor='c')
-tree.column("4",width=120,anchor='c')
-tree.column("5",width=120,anchor='c')
-tree.column("6",width=120,anchor='c')
-tree.column("7",width=220,anchor='c')
-tree.column("8",width=120,anchor='c')
-tree.column("9",width=100,anchor='c')
-tree.column("10",width=100,anchor='c')
-tree.column("11",width=100,anchor='c')
-tree.column("12",width=100,anchor='c')
-tree.heading("2",text="Client")
-tree.heading("3",text="Date")
-tree.heading("4",text="Category")
-tree.heading("5",text="Vendor")
-tree.heading("6",text="Staff member")
-tree.heading("7",text="Description")
-tree.heading("8",text="Rebillable")
-tree.heading("9",text="Invoiced")
-tree.heading("10",text="Image")
-tree.heading("11",text="Rebill Amount")
-tree.heading("12",text="Amount")
+exp_tree["columns"]=("1","2","3","4","5","6","7","8","9","10","11","12")
+exp_tree["show"]='headings'
+exp_tree.column("1",width=5,anchor='c')
+exp_tree.column("2",width=130,anchor='c')
+exp_tree.column("3",width=110,anchor='c')
+exp_tree.column("4",width=120,anchor='c')
+exp_tree.column("5",width=120,anchor='c')
+exp_tree.column("6",width=120,anchor='c')
+exp_tree.column("7",width=220,anchor='c')
+exp_tree.column("8",width=120,anchor='c')
+exp_tree.column("9",width=100,anchor='c')
+exp_tree.column("10",width=100,anchor='c')
+exp_tree.column("11",width=100,anchor='c')
+exp_tree.column("12",width=100,anchor='c')
+exp_tree.heading("2",text="Client")
+exp_tree.heading("3",text="Date")
+exp_tree.heading("4",text="Category")
+exp_tree.heading("5",text="Vendor")
+exp_tree.heading("6",text="Staff member")
+exp_tree.heading("7",text="Description")
+exp_tree.heading("8",text="Rebillable")
+exp_tree.heading("9",text="Invoiced")
+exp_tree.heading("10",text="Image")
+exp_tree.heading("11",text="Rebill Amount")
+exp_tree.heading("12",text="Amount")
+exp_tree.bind('<Double-Button-1>' , file_image)
+
+
+
+
 
 fbcursor.execute('SELECT * FROM Expenses;')
+
 j = 0
+
 for i in fbcursor:
-  tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i[7], i[13], i[14], i[11],i[16],i[3]))
+  if i[13] == '1':
+    e = 'Yes'
+  else:
+    e = 'No'
+  exp_tree.insert(parent='', index='end', iid=i, text='hello', values=(i[0], i[10], i[4], i[6], i[5], i[8], i[7], e , i[14], i[11],i[16],i[3]))
   j += 1
   
 root.mainloop()
